@@ -96,58 +96,57 @@ void setup() {
     WiFi.begin(ssid, pass);   //Intenta conectarse con los valores de las constantes ssid y pass a la red Wifi
     dht.begin();              // Inicializa el sensor DHT11
 
-  while (WiFi.status() != WL_CONNECTED) {     //Mientras no se logre la conexión con la red Wifi
-    if ( WiFi.status() == WL_NO_SSID_AVAIL || WiFi.status() == WL_WRONG_PASSWORD ) { //Si no se encuentra la red o la contraseña es incorrecta
-      Serial.print("\nProblema con la conexión, revise los valores de las constantes ssid y pass");
-      ESP.deepSleep(0);                       //Se duerme el ESP8266 indefinidamente hasta que se reinicie
-    } else if ( WiFi.status() == WL_CONNECT_FAILED ) {    //Si falla la conexión
-      Serial.print("\nNo se ha logrado conectar con la red, reinicie el ESP8266 y vuelva a intentar");
-      ESP.deepSleep(0);                       //Se duerme el ESP8266 indefinidamente hasta que se reinicie
+    while (WiFi.status() != WL_CONNECTED) {     //Mientras no se logre la conexión con la red Wifi
+        if ( WiFi.status() == WL_NO_SSID_AVAIL || WiFi.status() == WL_WRONG_PASSWORD ) { //Si no se encuentra la red o la contraseña es incorrecta
+            Serial.print("\nProblema con la conexión, revise los valores de las constantes ssid y pass");
+            ESP.deepSleep(0);                       //Se duerme el ESP8266 indefinidamente hasta que se reinicie
+        } else if ( WiFi.status() == WL_CONNECT_FAILED ) {    //Si falla la conexión
+            Serial.print("\nNo se ha logrado conectar con la red, reinicie el ESP8266 y vuelva a intentar");
+            ESP.deepSleep(0);                       //Se duerme el ESP8266 indefinidamente hasta que se reinicie
+        }
+        Serial.print(".");                        //Imprime un punto suspensivo en el monitor serial
+        delay(1000);                              //Espera 1 segundo antes de volver a intentar
     }
-    Serial.print(".");                        //Imprime un punto suspensivo en el monitor serial
-    delay(1000);                              //Espera 1 segundo antes de volver a intentar
-  }
-  Serial.println("Conectado!");               //Si se logra la conexión imprime un mensaje en el monitor serial
-
+    Serial.println("Conectado!");               //Si se logra la conexión imprime un mensaje en el monitor serial
   
-  Serial.print("Ajustando el tiempo usando SNTP");  //Sincroniza la hora del dispositivo con el servidor SNTP (Simple Network Time Protocol)
-  configTime(-5 * 3600, 0, "pool.ntp.org", "time.nist.gov");  //Configura la hora del sistema con la zona horaria de Colombia
-  now = time(nullptr);                              // Obtiene la hora actual del sistema
-  while (now < 1510592825) {                        //Mientras la hora actual sea menor a 1510592825 (1 de noviembre de 2017)
-    delay(500);                                     //Espera 0.5 segundos
-    Serial.print(".");                              //Imprime un punto suspensivo en el monitor serial
-    now = time(nullptr);                            //Obtiene la hora actual del sistema
-  }
-  Serial.println("Hecho!");                         //Si se logra sincronizar la hora imprime un mensaje en el monitor serial
-  
-  struct tm timeinfo;                               //Crea una estructura de tiempo llamada timeinfo para almacenar la hora actual
-  gmtime_r(&now, &timeinfo);                        //Obtiene la hora actual en formato UTC y la almacena en la estructura timeinfo
-  
-  Serial.print("Hora actual: ");                    //Una vez obtiene la hora, imprime en el monitor el tiempo actual
-  Serial.print(asctime(&timeinfo));                 //Imprime la hora actual en formato de cadena de caracteres
+    Serial.print("Ajustando el tiempo usando SNTP");  //Sincroniza la hora del dispositivo con el servidor SNTP (Simple Network Time Protocol)
+    configTime(-5 * 3600, 0, "pool.ntp.org", "time.nist.gov");  //Configura la hora del sistema con la zona horaria de Colombia
+    now = time(nullptr);                              // Obtiene la hora actual del sistema
+    while (now < 1510592825) {                        //Mientras la hora actual sea menor a 1510592825 (1 de noviembre de 2017)
+        delay(500);                                     //Espera 0.5 segundos
+        Serial.print(".");                              //Imprime un punto suspensivo en el monitor serial
+        now = time(nullptr);                            //Obtiene la hora actual del sistema
+    }
+    Serial.println("Hecho!");                         //Si se logra sincronizar la hora imprime un mensaje en el monitor serial
+    
+    struct tm timeinfo;                               //Crea una estructura de tiempo llamada timeinfo para almacenar la hora actual
+    gmtime_r(&now, &timeinfo);                        //Obtiene la hora actual en formato UTC y la almacena en la estructura timeinfo
+    
+    Serial.print("Hora actual: ");                    //Una vez obtiene la hora, imprime en el monitor el tiempo actual
+    Serial.print(asctime(&timeinfo));                 //Imprime la hora actual en formato de cadena de caracteres
 
-  #ifdef CHECK_CA_ROOT                              //Si está definido CHECK_CA_ROOT, se incluye la cadena de certificados
-    BearSSL::X509List cert(digicert);               //Crea un objeto de la clase X509List llamado cert que contiene la cadena de certificados
-    net.setTrustAnchors(&cert);                     //Establece la cadena de certificados como confiable
-  #endif
+    #ifdef CHECK_CA_ROOT                              //Si está definido CHECK_CA_ROOT, se incluye la cadena de certificados
+      BearSSL::X509List cert(digicert);               //Crea un objeto de la clase X509List llamado cert que contiene la cadena de certificados
+      net.setTrustAnchors(&cert);                     //Establece la cadena de certificados como confiable
+    #endif
 
-  #ifdef CHECK_PUB_KEY                              //Si está definido CHECK_PUB_KEY, se incluye la clave pública
-    BearSSL::PublicKey key(pubkey);                 //Crea un objeto de la clase PublicKey llamado key que contiene la clave pública
-    net.setKnownKey(&key);                          //Establece la clave pública como confiable
-  #endif
+    #ifdef CHECK_PUB_KEY                              //Si está definido CHECK_PUB_KEY, se incluye la clave pública
+      BearSSL::PublicKey key(pubkey);                 //Crea un objeto de la clase PublicKey llamado key que contiene la clave pública
+      net.setKnownKey(&key);                          //Establece la clave pública como confiable
+    #endif
 
-  #ifdef CHECK_FINGERPRINT          //Si está definido CHECK_FINGERPRINT, se incluye la huella digital
-    net.setFingerprint(fp);         //Establece la huella digital como confiable
-  #endif
+    #ifdef CHECK_FINGERPRINT          //Si está definido CHECK_FINGERPRINT, se incluye la huella digital
+      net.setFingerprint(fp);         //Establece la huella digital como confiable
+    #endif
 
-  #if (!defined(CHECK_PUB_KEY) and !defined(CHECK_CA_ROOT) and !defined(CHECK_FINGERPRINT))   //Si no se define ninguna opción de verificación
-    net.setInsecure();              //Establece la conexión como insegura
-  #endif
+    #if (!defined(CHECK_PUB_KEY) and !defined(CHECK_CA_ROOT) and !defined(CHECK_FINGERPRINT))   //Si no se define ninguna opción de verificación
+      net.setInsecure();              //Establece la conexión como insegura
+    #endif
 
-  client.setServer(MQTT_HOST, MQTT_PORT);   //Establece el servidor MQTT al que se conectará el cliente
-  client.setCallback(receivedCallback);     //Establece la función de callback que se ejecutará cuando se reciba un mensaje en un tópico suscrito
-  
-  mqtt_connect();                           //Llama a la función de este programa que realiza la conexión con Mosquitto
+    client.setServer(MQTT_HOST, MQTT_PORT);   //Establece el servidor MQTT al que se conectará el cliente
+    client.setCallback(receivedCallback);     //Establece la función de callback que se ejecutará cuando se reciba un mensaje en un tópico suscrito
+    
+    mqtt_connect();                           //Llama a la función de este programa que realiza la conexión con Mosquitto
 }
 
 /**
@@ -155,53 +154,53 @@ void setup() {
  * Lee los datos del sensor DHT11 y los envía a los tópicos correspondientes
  */
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {                    //Si no se logra la conexión con la red Wifi se intenta reconectar
-    Serial.print("Intentando establecer conexion WiFi");  //Imprime en el monitor serial que se está revisando la conexión Wifi
-    while (WiFi.waitForConnectResult() != WL_CONNECTED) { //Mientras no se logre la conexión con la red Wifi
-      WiFi.begin(ssid, pass);     //Intenta conectarse con los valores de las constantes ssid y pass a la red Wifi
-      Serial.print(".");          //Imprime un punto suspensivo en el monitor serial
-      delay(10);                  //Espera 10 milisegundos antes de volver a intentar
-    }
-    Serial.println("Conectado");  //Si se logra la conexión imprime un mensaje en el monitor serial
-  } else {
-    if (!client.connected()) {    //Si no se logra la conexión con el servidor MQTT se intenta reconectar
-      mqtt_connect();             //Llama a la función de este programa que realiza la conexión con Mosquitto
+    if (WiFi.status() != WL_CONNECTED) {                    //Si no se logra la conexión con la red Wifi se intenta reconectar
+        Serial.print("Intentando establecer conexion WiFi");  //Imprime en el monitor serial que se está revisando la conexión Wifi
+        while (WiFi.waitForConnectResult() != WL_CONNECTED) { //Mientras no se logre la conexión con la red Wifi
+            WiFi.begin(ssid, pass);     //Intenta conectarse con los valores de las constantes ssid y pass a la red Wifi
+            Serial.print(".");          //Imprime un punto suspensivo en el monitor serial
+            delay(10);                  //Espera 10 milisegundos antes de volver a intentar
+        }
+        Serial.println("Conectado");  //Si se logra la conexión imprime un mensaje en el monitor serial
     } else {
-      client.loop();              //Si se logra la conexión con el servidor MQTT se mantiene la conexión
+        if (!client.connected()) {    //Si no se logra la conexión con el servidor MQTT se intenta reconectar
+            mqtt_connect();             //Llama a la función de este programa que realiza la conexión con Mosquitto
+        } else {
+            client.loop();              //Si se logra la conexión con el servidor MQTT se mantiene la conexión
+        }
     }
-  }
 
-  now = time(nullptr); // Obtiene la hora actual del sistema. (nullptr: es un puntero nulo que se usa para indicar que no se está apuntando a ninguna dirección de memoria)
+    now = time(nullptr); // Obtiene la hora actual del sistema. (nullptr: es un puntero nulo que se usa para indicar que no se está apuntando a ninguna dirección de memoria)
+    
+    float h = dht.readHumidity();     //Lee la humedad del sensor DHT11
+    float t = dht.readTemperature();  //Lee la temperatura del sensor DHT11
+    
+    //Se crea un objeto JSON con el valor de la humedad y se convierte a un arreglo de caracteres
+    //Tiene la forma {"value": x}, donde x es el valor de la humedad
+    String json = "{\"value\": "+ String(h) + "}";
+    char payload1[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
+    json.toCharArray(payload1,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
+
+    //Se crea un objeto JSON con el valor de la temperatura y se convierte a un arreglo de caracteres
+    //Tiene la forma {"value": x}, donde x es el valor de la temperatura
+    json = "{\"value\": "+ String(t) + "}";     //Se crea un objeto JSON con el valor de la temperatura
+    char payload2[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
+    json.toCharArray(payload2,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
+
+    // Si los valores de los sensores no son numeros validos, es decir se leyo mal el sensor
+    if ( !isnan(h) && !isnan(t) ) {
+        client.publish(MQTT_PUB_TOPIC1, payload1, false);   //Publica en el tópico de la humedad
+        client.publish(MQTT_PUB_TOPIC2, payload2, false);   //Publica en el tópico de la temperatura
+    }
+
+    //Imprime en el monitor serial la información recolectada
+    Serial.print(MQTT_PUB_TOPIC1);
+    Serial.print(" -> ");
+    Serial.println(payload1);
+    Serial.print(MQTT_PUB_TOPIC2);
+    Serial.print(" -> ");
+    Serial.println(payload2);
   
-  float h = dht.readHumidity();     //Lee la humedad del sensor DHT11
-  float t = dht.readTemperature();  //Lee la temperatura del sensor DHT11
-  
-  //Se crea un objeto JSON con el valor de la humedad y se convierte a un arreglo de caracteres
-  //Tiene la forma {"value": x}, donde x es el valor de la humedad
-  String json = "{\"value\": "+ String(h) + "}";
-  char payload1[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
-  json.toCharArray(payload1,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
-
-  //Se crea un objeto JSON con el valor de la temperatura y se convierte a un arreglo de caracteres
-  //Tiene la forma {"value": x}, donde x es el valor de la temperatura
-  json = "{\"value\": "+ String(t) + "}";     //Se crea un objeto JSON con el valor de la temperatura
-  char payload2[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
-  json.toCharArray(payload2,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
-
-  // Si los valores de los sensores no son numeros validos, es decir se leyo mal el sensor
-  if ( !isnan(h) && !isnan(t) ) {
-    client.publish(MQTT_PUB_TOPIC1, payload1, false);   //Publica en el tópico de la humedad
-    client.publish(MQTT_PUB_TOPIC2, payload2, false);   //Publica en el tópico de la temperatura
-  }
-
-  //Imprime en el monitor serial la información recolectada
-  Serial.print(MQTT_PUB_TOPIC1);
-  Serial.print(" -> ");
-  Serial.println(payload1);
-  Serial.print(MQTT_PUB_TOPIC2);
-  Serial.print(" -> ");
-  Serial.println(payload2);
- 
-  //Se realiza un retardo de 5 segundos antes de volver a leer los datos del sensor ya que el sensor DHT11 no puede leerse con una frecuencia muy alta
-  delay(5000);
+    //Se realiza un retardo de 5 segundos antes de volver a leer los datos del sensor ya que el sensor DHT11 no puede leerse con una frecuencia muy alta
+    delay(5000);
 }
