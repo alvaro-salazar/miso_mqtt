@@ -23,7 +23,7 @@ const char MQTT_PASS[] = "202315848";                      //Contraseña de MQTT
 const char MQTT_SUB_TOPIC[] = HOSTNAME "/";                //Tópico al que se suscribirá el node
 const char MQTT_PUB_TOPIC1[] = "humedad/tulua/" HOSTNAME;  //Tópico al que se enviarán los datos de humedad
 const char MQTT_PUB_TOPIC2[] = "temperatura/tulua/" HOSTNAME;  //Tópico al que se enviarán los datos de temperatura
-
+const char MQTT_PUB_TOPIC3[] = "luminosidad/tulua/" HOSTNAME;  //Tópico al que se enviarán los datos de temperatura
 
 // Esta macro permite que se active #error si se habilitan más de una opción de verificación (#error es una directiva de preprocesador que detiene la compilación)
 #if (defined(CHECK_PUB_KEY) and defined(CHECK_CA_ROOT)) or (defined(CHECK_PUB_KEY) and defined(CHECK_FINGERPRINT)) or (defined(CHECK_FINGERPRINT) and defined(CHECK_CA_ROOT)) or (defined(CHECK_PUB_KEY) and defined(CHECK_CA_ROOT) and defined(CHECK_FINGERPRINT))
@@ -174,7 +174,16 @@ void loop() {
     
     float h = dht.readHumidity();     //Lee la humedad del sensor DHT11
     float t = dht.readTemperature();  //Lee la temperatura del sensor DHT11
-    
+    int ldr = analogRead(A0);         //Lee el valor del sensor LDR conectado al pin A0
+    float lux;
+    //Conversion de valores discretos a lux usando curvas de correccion experimental por regresiones
+    // y = -8E-07x3 + 0,0014x2 - 0,8236x + 153,72  con valores de x entre 0 y 474
+    // y = -0,0105x + 10,799 con valores de x entre 475 y 1024
+    if(ldr >= 475)
+        lux = -0.0105 * ldr + 10.799;
+    else
+        lux = -8e-7 * pow(ldr, 3) + 0.0014 * pow(ldr, 2) - 0.8236 * ldr + 153.72;
+
     //Se crea un objeto JSON con el valor de la humedad y se convierte a un arreglo de caracteres
     //Tiene la forma {"value": x}, donde x es el valor de la humedad
     String json = "{\"value\": "+ String(h) + "}";
@@ -187,11 +196,19 @@ void loop() {
     char payload2[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
     json.toCharArray(payload2,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
 
+    //Se crea un objeto JSON con el valor de la luminosidad y se convierte a un arreglo de caracteres
+    //Tiene la forma {"value": x}, donde x es el valor de la temperatura
+    json = "{\"value\": "+ String(lux) + "}";     //Se crea un objeto JSON con el valor de la temperatura
+    char payload3[json.length()+1];             //Se crea un arreglo de caracteres de la longitud del objeto JSON
+    json.toCharArray(payload3,json.length()+1); //Se convierte el objeto JSON a un arreglo de caracteres
+
     // Si los valores de los sensores no son numeros validos, es decir se leyo mal el sensor
     if ( !isnan(h) && !isnan(t) ) {
         client.publish(MQTT_PUB_TOPIC1, payload1, false);   //Publica en el tópico de la humedad
         client.publish(MQTT_PUB_TOPIC2, payload2, false);   //Publica en el tópico de la temperatura
     }
+    
+    client.publish(MQTT_PUB_TOPIC3, payload3, false);   //Publica en el tópico de la luminosidad
 
     //Imprime en el monitor serial la información recolectada
     Serial.print(MQTT_PUB_TOPIC1);
@@ -200,6 +217,9 @@ void loop() {
     Serial.print(MQTT_PUB_TOPIC2);
     Serial.print(" -> ");
     Serial.println(payload2);
+    Serial.print(MQTT_PUB_TOPIC3);
+    Serial.print(" -> ");
+    Serial.println(payload3);
   
     //Se realiza un retardo de 5 segundos antes de volver a leer los datos del sensor ya que el sensor DHT11 no puede leerse con una frecuencia muy alta
     delay(5000);
