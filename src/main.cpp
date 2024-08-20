@@ -1,20 +1,23 @@
+
 #include <ESP8266WiFi.h> 
 #include <WiFiClientSecure.h>   //Librería para la conexión segura con el servidor MQTT por SSL
 #include <time.h>               //Librería para obtener la hora del sistema
 #include <PubSubClient.h>       //Hay que instalar la librería PubSubClient en PlatformIO que es un cliente MQTT
 #include <DHT.h>                //Librería para el sensor de temperatura y humedad DHT11 de Adafruit
 #include "secrets.h"            //Archivo de configuración de las constantes de conexión que no se deben subir a Github
+#include <BH1750.h>
+#include <Wire.h>
 
 #define HOSTNAME "ah.salazar"   //Usuario uniandes sin @uniandes.edu.co
 #define DHTTYPE DHT11           // Se indica el tipo de sensor DHT que se está utilizando
-#define dht_dpin D2             // Pin digital al que está conectado el sensor DHT
+#define dht_dpin D3             // Pin digital al que está conectado el sensor DHT
 
 //Configuracion de la red Wifi
 const char ssid[] = "virus2";   //Nombre de la red Wifi
 const char pass[] = "a1b2c3d4"; //Contraseña de la red Wifi
 
 DHT dht(dht_dpin, DHTTYPE);     // Se crea un objeto llamado dht de la clase DHT
-
+BH1750 lightMeter(0x23);
 //Configuracion de la conexion a Mosquitto (Mosquitto es un servidor o broker MQTT)
 const char MQTT_HOST[] = "iotlab.virtual.uniandes.edu.co"; //Host del servidor MQTT
 const int MQTT_PORT = 8082;                                //Puerto del servidor MQTT
@@ -95,7 +98,15 @@ void setup() {
     WiFi.mode(WIFI_STA);      //Configura el ESP8266 en modo estación
     WiFi.begin(ssid, pass);   //Intenta conectarse con los valores de las constantes ssid y pass a la red Wifi
     dht.begin();              // Inicializa el sensor DHT11
-
+    Wire.begin();
+    
+    // begin returns a boolean that can be used to detect setup problems.
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+        Serial.println(F("Inicializando el sensor de intensidad de luz BH1750"));
+    } else {
+        Serial.println(F("Error inicializando el BH1750"));
+    }
+        
     while (WiFi.status() != WL_CONNECTED) {     //Mientras no se logre la conexión con la red Wifi
         if ( WiFi.status() == WL_NO_SSID_AVAIL || WiFi.status() == WL_WRONG_PASSWORD ) { //Si no se encuentra la red o la contraseña es incorrecta
             Serial.print("\nProblema con la conexión, revise los valores de las constantes ssid y pass");
@@ -175,15 +186,15 @@ void loop() {
     float h = dht.readHumidity();     //Lee la humedad del sensor DHT11
     float t = dht.readTemperature();  //Lee la temperatura del sensor DHT11
     int ldr = analogRead(A0);         //Lee el valor del sensor LDR conectado al pin A0
-    float lux;
-    //Conversion de valores discretos a lux usando curvas de correccion experimental por regresiones
-    // y = -8E-07x3 + 0,0014x2 - 0,8236x + 153,72  con valores de x entre 0 y 474
-    // y = -0,0105x + 10,799 con valores de x entre 475 y 1024
-    if(ldr >= 475)
-        lux = -0.0105 * ldr + 10.799;
-    else
-        lux = -8e-7 * pow(ldr, 3) + 0.0014 * pow(ldr, 2) - 0.8236 * ldr + 153.72;
-
+    float lux;                        //Variable que almacena el valor calculado de la luminosidad en el LDR
+    
+    //Conversion de valores discretos a lux usando regresion no lineal serie de potencias obtenida experimentalmente con un luxometro BH1750
+    // y = 3245x^-0,537 con un R^2 = 0.994
+    lux = 3245 * pow(ldr, -0.537)-78.49; //Calcula el valor de la luminosidad en lux a partir del valor del LDR
+    if (lightMeter.measurementReady()) {
+        float luxometer = lightMeter.readLightLevel();
+        Serial.print("LuxBHT: "+String(luxometer)+"\tVal: "+String(ldr)+"\tLuxLDR: "+String(lux)+"\n");
+    }
     //Se crea un objeto JSON con el valor de la humedad y se convierte a un arreglo de caracteres
     //Tiene la forma {"value": x}, donde x es el valor de la humedad
     String json = "{\"value\": "+ String(h) + "}";
